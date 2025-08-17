@@ -3,6 +3,7 @@ load_dotenv()
 
 # pip install streamlit langchain langchain-openai　
 
+import os
 import streamlit as st
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
@@ -14,7 +15,18 @@ st.set_page_config(page_title="3人の健康専門家に相談しよう", page_i
 # ====== LLM 設定 ======
 MODEL_NAME = "gpt-4o-mini"
 TEMPERATURE = 0.3
-llm = ChatOpenAI(model=MODEL_NAME, temperature=TEMPERATURE)
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
+if not OPENAI_API_KEY:
+    st.error("OPENAI_API_KEYが設定されていません。環境変数または.envファイルで設定してください。")
+    st.stop()
+
+llm = ChatOpenAI(
+    model=MODEL_NAME,
+    temperature=TEMPERATURE,
+    openai_api_key=OPENAI_API_KEY  # 環境変数からAPIキーを取得
+)
+
 
 # ====== 専門家ごとのシステムメッセージ ======
 EXPERT_PROMPTS = {
