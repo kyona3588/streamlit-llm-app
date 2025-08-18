@@ -1,8 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-# pip install streamlit langchain langchain-openai　
-
 import os
 import streamlit as st
 from langchain_openai import ChatOpenAI
@@ -24,9 +22,8 @@ if not OPENAI_API_KEY:
 llm = ChatOpenAI(
     model=MODEL_NAME,
     temperature=TEMPERATURE,
-    openai_api_key=OPENAI_API_KEY  # 環境変数からAPIキーを取得
+    openai_api_key=OPENAI_API_KEY
 )
-
 
 # ====== 専門家ごとのシステムメッセージ ======
 EXPERT_PROMPTS = {
@@ -47,13 +44,18 @@ EXPERT_PROMPTS = {
     ),
 }
 
+# ====== チェーン構築関数 ======
 def build_chain(system_msg: str):
-    """選択された専門家向けシステムメッセージでチェーンを作る"""
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_msg),
         ("human", "{question}")
     ])
     return prompt | llm | StrOutputParser()
+
+# ====== LLM応答取得関数 ======
+def get_llm_response(question: str, expert: str) -> str:
+    chain = build_chain(EXPERT_PROMPTS[expert])
+    return chain.invoke({"question": question})
 
 # ====== 画面：概要 & 操作説明 ======
 st.title("🧑‍⚕️ 3人の専門家に相談しよう")
@@ -69,10 +71,10 @@ st.markdown(
     "2. **相談内容**を入力（例：最近寝つきが悪い／減量したい／肩こりを改善したい など）\n"
     "3. **送信**ボタンを押すと、専門家が回答します\n"
 )
-st.info("※ 本アプリの回答は一般的なアドバイスであり、医療行為や診断ではありません。")
+st.warning("※ 本アプリの回答は一般的なアドバイスであり、医療行為や診断ではありません。")
 st.divider()
 
-# ====== 入力フォーム（1つのフォームに集約） ======
+# ====== 入力フォーム ======
 st.subheader("📝 相談フォーム")
 with st.form(key="consult_form"):
     expert = st.radio(
@@ -93,15 +95,13 @@ if submitted:
     if not question.strip():
         st.warning("相談内容を入力してください。")
     else:
-        chain = build_chain(EXPERT_PROMPTS[expert])
         with st.spinner("回答を作成中…"):
-            answer = chain.invoke({"question": question})
-        st.markdown("---")
-        st.subheader("回答")
-        st.markdown(f"**選択された専門家**：{expert}")
+            answer = get_llm_response(question, expert)
+        st.divider()
+        st.info(f"**選択された専門家**：{expert}\n\n**相談内容**：{question}")
+
+        st.markdown("#### 回答")
         st.markdown(answer)
         st.divider()
-
-        # プロンプトを確認したい(学習用)
         with st.expander("💡 使われたシステムメッセージを表示"):
             st.code(EXPERT_PROMPTS[expert], language="markdown")
